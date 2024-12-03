@@ -1,0 +1,178 @@
+-- Crear base de datos
+CREATE DATABASE IF NOT EXISTS TermoFlexPro;
+USE TermoFlexPro;
+
+-- Crear tabla de categorías de productos
+-- Esta tabla categoriza los productos en diferentes segmentos como 'Deportivos' o 'Casuales'.
+CREATE TABLE Categorias (
+    id_categoria INT AUTO_INCREMENT PRIMARY KEY, -- Llave primaria única para cada categoría
+    nombre VARCHAR(50) NOT NULL UNIQUE, -- El nombre de la categoría debe ser único
+    descripcion TEXT -- Descripción opcional de la categoría
+);
+
+-- Crear tabla de productos
+-- Almacena información detallada de los productos, incluyendo relación con la tabla de categorías.
+CREATE TABLE Productos (
+    id_producto INT AUTO_INCREMENT PRIMARY KEY, -- Identificador único del producto
+    nombre VARCHAR(100) NOT NULL UNIQUE, -- El nombre debe ser único para evitar duplicados
+    descripcion TEXT, -- Descripción general del producto
+    id_categoria INT, -- Relación con la tabla Categorias
+    precio DECIMAL(10, 2) NOT NULL CHECK (precio > 0), -- Precio debe ser mayor a 0
+    stock INT NOT NULL CHECK (stock >= 0), -- Control de inventario (no puede ser negativo)
+    estado ENUM('activo', 'inactivo') DEFAULT 'activo', -- Estado por defecto es 'activo'
+    fecha_lanzamiento DATE, -- Fecha en que se lanzó el producto al mercado
+    ultima_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, -- Registra la última modificación
+    FOREIGN KEY (id_categoria) REFERENCES Categorias(id_categoria) ON DELETE SET NULL -- Si se elimina una categoría, se mantiene el producto pero sin categoría
+);
+
+-- Crear tabla de sensores
+-- Define los sensores usados en los productos, con su estado y especificaciones técnicas.
+CREATE TABLE Sensores (
+    id_sensor INT AUTO_INCREMENT PRIMARY KEY, -- Identificador único del sensor
+    tipo VARCHAR(50) NOT NULL, -- Tipo de sensor, por ejemplo, 'Movimiento' o 'Temperatura'
+    especificaciones TEXT, -- Detalles técnicos del sensor
+    estado ENUM('activo', 'inactivo') DEFAULT 'activo', -- Estado operativo del sensor
+    id_producto INT, -- Relación con la tabla Productos
+    FOREIGN KEY (id_producto) REFERENCES Productos(id_producto) ON DELETE CASCADE -- Si el producto es eliminado, los sensores también
+);
+
+-- Crear tabla de materiales
+-- Almacena los materiales utilizados en la fabricación de productos.
+CREATE TABLE Materiales (
+    id_material INT AUTO_INCREMENT PRIMARY KEY, -- Identificador único del material
+    nombre VARCHAR(100) NOT NULL UNIQUE, -- Nombre único del material
+    descripcion TEXT, -- Descripción del material
+    estado ENUM('activo', 'inactivo') DEFAULT 'activo', -- Estado operativo del material
+    ultima_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP -- Fecha de la última modificación
+);
+
+-- Crear tabla relacional Productos-Materiales
+-- Relaciona los productos con los materiales utilizados, incluyendo cantidad.
+CREATE TABLE Producto_Material (
+    id_producto INT,
+    id_material INT,
+    cantidad_utilizada DECIMAL(10, 2) NOT NULL, -- Cantidad de material utilizada por producto
+    PRIMARY KEY (id_producto, id_material), -- Llave compuesta para identificar la relación
+    FOREIGN KEY (id_producto) REFERENCES Productos(id_producto) ON DELETE CASCADE,
+    FOREIGN KEY (id_material) REFERENCES Materiales(id_material) ON DELETE CASCADE
+);
+
+-- Crear tabla de pruebas realizadas
+-- Registra pruebas de calidad realizadas sobre los productos.
+CREATE TABLE Pruebas (
+    id_prueba INT AUTO_INCREMENT PRIMARY KEY, -- Identificador único de cada prueba
+    id_producto INT, -- Relación con el producto probado
+    descripcion TEXT, -- Descripción de la prueba
+    resultados TEXT, -- Resultados obtenidos
+    estado ENUM('pendiente', 'completada', 'fallida') DEFAULT 'pendiente', -- Estado actual de la prueba
+    fecha DATE NOT NULL, -- Fecha en la que se realizó la prueba
+    FOREIGN KEY (id_producto) REFERENCES Productos(id_producto) ON DELETE CASCADE
+);
+
+-- Crear tabla de usuarios (clientes)
+-- Define los datos de los usuarios registrados en el sistema.
+CREATE TABLE Usuarios (
+    id_usuario INT AUTO_INCREMENT PRIMARY KEY, -- Identificador único del usuario
+    nombre VARCHAR(100) NOT NULL, -- Nombre del usuario
+    correo VARCHAR(100) UNIQUE NOT NULL, -- Correo electrónico único
+    telefono VARCHAR(15), -- Número telefónico opcional
+    direccion TEXT, -- Dirección del usuario
+    estado ENUM('activo', 'inactivo') DEFAULT 'activo', -- Estado del usuario
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- Fecha de registro del usuario
+);
+
+-- Crear tabla de ventas
+-- Registra las ventas realizadas en el sistema.
+CREATE TABLE Ventas (
+    id_venta INT AUTO_INCREMENT PRIMARY KEY, -- Identificador único de cada venta
+    id_usuario INT, -- Usuario que realizó la compra
+    id_producto INT, -- Producto comprado
+    cantidad INT NOT NULL CHECK (cantidad > 0), -- Cantidad de productos en la venta
+    fecha DATE NOT NULL, -- Fecha de la venta
+    total DECIMAL(10, 2) NOT NULL CHECK (total >= 0), -- Total de la venta (debe ser mayor o igual a 0)
+    estado ENUM('completada', 'pendiente', 'cancelada') DEFAULT 'pendiente', -- Estado actual de la venta
+    FOREIGN KEY (id_usuario) REFERENCES Usuarios(id_usuario) ON DELETE CASCADE,
+    FOREIGN KEY (id_producto) REFERENCES Productos(id_producto) ON DELETE CASCADE
+);
+
+-- Crear tabla de proveedores
+-- Registra los proveedores de materiales o productos.
+CREATE TABLE Proveedores (
+    id_proveedor INT AUTO_INCREMENT PRIMARY KEY, -- Identificador único del proveedor
+    nombre VARCHAR(100) NOT NULL UNIQUE, -- Nombre único del proveedor
+    contacto VARCHAR(100), -- Información de contacto (correo o teléfono)
+    direccion TEXT, -- Dirección del proveedor
+    estado ENUM('activo', 'inactivo') DEFAULT 'activo', -- Estado actual del proveedor
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- Fecha de registro del proveedor
+);
+
+-- Crear tabla de fabricación
+-- Registra los productos fabricados por cada proveedor.
+CREATE TABLE Fabricacion (
+    id_fabricacion INT AUTO_INCREMENT PRIMARY KEY, -- Identificador único del proceso de fabricación
+    id_proveedor INT, -- Proveedor responsable
+    id_producto INT, -- Producto fabricado
+    cantidad INT NOT NULL CHECK (cantidad > 0), -- Cantidad fabricada (debe ser positiva)
+    fecha DATE NOT NULL, -- Fecha de fabricación
+    FOREIGN KEY (id_proveedor) REFERENCES Proveedores(id_proveedor) ON DELETE CASCADE,
+    FOREIGN KEY (id_producto) REFERENCES Productos(id_producto) ON DELETE CASCADE
+);
+
+-- Insertar categorías
+INSERT INTO Categorias (nombre, descripcion)
+VALUES 
+('Deportivos', 'Calzado para actividades físicas y deportivas'),
+('Casuales', 'Calzado para uso diario con diseño cómodo y versátil');
+
+-- Insertar productos
+INSERT INTO Productos (nombre, descripcion, id_categoria, precio, stock, estado, fecha_lanzamiento)
+VALUES 
+('TermoFlex Pro Sport', 'Calzado deportivo con recarga de energía por movimiento y ajuste térmico', 1, 3500.99, 100, 'activo', '2024-11-20'),
+('TermoFlex Casual Fit', 'Calzado casual con diseño termo-adaptativo y recarga por pasos', 2, 2500.75, 150, 'activo', '2024-12-10');
+
+-- Insertar sensores
+INSERT INTO Sensores (tipo, especificaciones, estado, id_producto)
+VALUES 
+('Sensor de Movimiento', 'Genera energía por cada paso para alimentar sensores', 'activo', 1),
+('Sensor de Temperatura', 'Regula el ajuste del calzado según temperatura corporal', 'activo', 1);
+
+-- Insertar materiales
+INSERT INTO Materiales (nombre, descripcion, estado)
+VALUES 
+('Material Termo-dinámico', 'Permite ajuste según temperatura corporal', 'activo'),
+('Revestimiento Energético', 'Genera energía por movimiento y reduce impacto ambiental', 'activo');
+
+-- Relación Producto-Material
+INSERT INTO Producto_Material (id_producto, id_material, cantidad_utilizada)
+VALUES 
+(1, 1, 0.6),
+(1, 2, 0.4),
+(2, 1, 0.5),
+(2, 2, 0.3);
+
+-- Insertar pruebas
+INSERT INTO Pruebas (id_producto, descripcion, resultados, estado, fecha)
+VALUES 
+(1, 'Prueba de generación energética por movimiento', 'Genera 6 horas de energía diaria con uso promedio', 'completada', '2024-11-18'),
+(2, 'Prueba de confort térmico en ambientes fríos', 'Ajuste óptimo en temperaturas bajo 0°C', 'completada', '2024-11-25');
+
+-- Insertar usuarios
+INSERT INTO Usuarios (nombre, correo, telefono, direccion)
+VALUES 
+('Sofía García', 'sofia.garcia@example.com', '5559876543', 'Calle Falsa 123, CDMX'),
+('Carlos Martínez', 'carlos.martinez@example.com', '5551234567', 'Av. Tecnológico 456, Guadalajara'),
+('Ana Rodríguez', 'ana.rodriguez@example.com', '5558901234', 'Paseo de la Reforma 789, CDMX'),
+('Miguel Hernández', 'miguel.hernandez@example.com', '5552345678', 'Calle Industrial 234, Monterrey');
+
+-- Insertar ventas
+INSERT INTO Ventas (id_usuario, id_producto, cantidad, fecha, total, estado)
+VALUES 
+(1, 1, 1, '2024-11-20', 3500.99, 'completada'),
+(2, 2, 2, '2024-12-05', 5001.50, 'completada'),
+(3, 1, 1, '2025-01-10', 2800.99, 'pendiente'),
+(4, 2, 3, '2025-02-15', 5701.50, 'completada');
+
+-- Insertar proveedores
+INSERT INTO Proveedores (nombre, contacto, direccion)
+VALUES 
+('Materiales Innovadores', 'ventas@materiales.com', 'Parque Industrial Norte 5, Monterrey');
